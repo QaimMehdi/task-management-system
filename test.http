@@ -1,0 +1,28 @@
+### create
+POST http://localhost:3000/api/tasks
+Content-Type: application/json
+
+{
+  "title": "My First Task",
+  "description": "This is a test task.",
+  "status": "pending",
+  "dueDate": "2025-04-10T00:00:00Z"
+}
+
+### get all tasks
+GET http://localhost:3000/api/tasks
+
+### get a task via id
+GET http://localhost:3000/api/tasks/67e91b622435d2bfd5187d7f
+
+### update a task via id
+PUT http://localhost:3000/api/tasks/67e91b622435d2bfd5187d7f
+Content-Type: application/json
+
+{
+  "title": "Updated Task Title",
+  "status": "completed"
+}
+
+### delete a task
+DELETE http://localhost:3000/api/tasks/67e91b622435d2bfd5187d7f
