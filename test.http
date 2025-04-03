@@ -10,13 +10,13 @@ Content-Type: application/json
 }
 
 ### get all tasks
-GET http://localhost:3000/api/tasks
+GET http://localhost:3000/api/tasks 
 
 ### get a task via id
-GET http://localhost:3000/api/tasks/67e91b622435d2bfd5187d7f
+GET http://localhost:3000/api/tasks/67e9217245c427a058060a0f
 
 ### update a task via id
-PUT http://localhost:3000/api/tasks/67e91b622435d2bfd5187d7f
+PUT http://localhost:3000/api/tasks/67e9217245c427a058060a0f
 Content-Type: application/json
 
 {
@@ -25,4 +25,4 @@ Content-Type: application/json
 }
 
 ### delete a task
-DELETE http://localhost:3000/api/tasks/67e91b622435d2bfd5187d7f
+DELETE http://localhost:3000/api/tasks/67e9217245c427a058060a0f

@@ -12,8 +12,8 @@ const createTask = async (req, res, next) => {
     }
 
     // validate status if provided
-    if (status && !['pending', 'in progress', 'completed'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status value. Must be pending, in progress, or completed.' });
+    if (status && !['pending', 'in-progress', 'completed'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value. Must be pending, in-progress, or completed.' });
     }
 
     const task = new Task({ title, description, status, dueDate });

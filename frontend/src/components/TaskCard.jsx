@@ -1,159 +1,126 @@
+import React from 'react';
 import {
   Box,
+  Heading,
   Text,
   Badge,
   Button,
   HStack,
   VStack,
   useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalCloseButton,
-  useDisclosure,
-  Icon,
-  useColorModeValue,
-} from '@chakra-ui/react'
-import { FaEdit, FaTrash, FaCalendarAlt, FaClock } from 'react-icons/fa'
-import TaskDetails from './TaskDetails'
+  Spacer,
+} from '@chakra-ui/react';
+import { FaTrash, FaPlay, FaCheck } from 'react-icons/fa';
+import { taskService } from '../services/taskService';
 
-const TaskCard = ({ task, onDelete, onEdit }) => {
-  const toast = useToast()
-  const { isOpen, onOpen, onClose } = useDisclosure()
-
-  const bgColor = useColorModeValue('white', 'gray.800')
-  const borderColor = useColorModeValue('gray.200', 'gray.600')
+const TaskCard = ({ task, onDelete }) => {
+  const toast = useToast();
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'pending':
+        return 'yellow';
+      case 'in-progress':
+        return 'blue';
       case 'completed':
-        return 'green'
-      case 'in progress':
-        return 'blue'
+        return 'green';
       default:
-        return 'yellow'
+        return 'gray';
     }
-  }
+  };
 
-  const handleDelete = async () => {
+  const handleStatusChange = async (newStatus) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/tasks/${task._id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) throw new Error('Failed to delete task')
-
-      onDelete?.(task._id)
+      await taskService.updateTask(task._id, {
+        ...task,
+        status: newStatus,
+      });
       toast({
-        title: 'Task deleted successfully',
+        title: 'Success',
+        description: 'Task status updated successfully',
         status: 'success',
         duration: 3000,
-      })
+        isClosable: true,
+      });
+      // Refresh the task list
+      window.location.reload();
     } catch (error) {
       toast({
-        title: 'Error deleting task',
-        description: error.message,
+        title: 'Error',
+        description: 'Failed to update task status',
         status: 'error',
         duration: 3000,
-      })
+        isClosable: true,
+      });
     }
-  }
+  };
 
   return (
-    <>
-      <Box
-        p={6}
-        bg={bgColor}
-        rounded="xl"
-        shadow="md"
-        cursor="pointer"
-        onClick={onOpen}
-        border="1px"
-        borderColor={borderColor}
-        _hover={{ 
-          shadow: 'xl', 
-          transform: 'translateY(-4px)', 
-          transition: 'all 0.2s',
-          borderColor: 'blue.500'
-        }}
-      >
-        <VStack align="stretch" spacing={4}>
-          <HStack justify="space-between">
-            <Text fontSize="xl" fontWeight="bold" noOfLines={1} color="blue.600">
-              {task.title}
-            </Text>
-            <Badge 
-              colorScheme={getStatusColor(task.status)}
-              px={3}
-              py={1}
-              fontSize="sm"
-              rounded="full"
-            >
-              {task.status}
-            </Badge>
-          </HStack>
+    <Box
+      p={6}
+      borderWidth="1px"
+      borderRadius="lg"
+      boxShadow="sm"
+      bg="white"
+      height="100%"
+      _hover={{ boxShadow: 'md' }}
+      transition="all 0.2s"
+      display="flex"
+      flexDirection="column"
+    >
+      <VStack align="stretch" spacing={4} flex="1">
+        <HStack>
+          <Heading size="md" noOfLines={2}>{task.title}</Heading>
+          <Spacer />
+          <Badge colorScheme={getStatusColor(task.status)} px={2} py={1} borderRadius="md">
+            {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+          </Badge>
+        </HStack>
 
-          <Text color="gray.600" noOfLines={2} fontSize="md">
-            {task.description}
-          </Text>
+        <Text color="gray.600" noOfLines={3}>{task.description}</Text>
 
-          <HStack spacing={4} color="gray.500" fontSize="sm">
-            <HStack>
-              <Icon as={FaCalendarAlt} />
-              <Text>
-                {new Date(task.dueDate).toLocaleDateString()}
-              </Text>
-            </HStack>
-            <HStack>
-              <Icon as={FaClock} />
-              <Text>
-                {new Date(task.dueDate).toLocaleTimeString()}
-              </Text>
-            </HStack>
-          </HStack>
+        <Text fontSize="sm" color="gray.500">
+          Due: {new Date(task.dueDate).toLocaleDateString()}
+        </Text>
 
-          <HStack spacing={2} justify="flex-end">
+        <Spacer />
+
+        <HStack spacing={2} mt="auto">
+          {task.status !== 'in-progress' && task.status !== 'completed' && (
             <Button
               size="sm"
               colorScheme="blue"
-              leftIcon={<Icon as={FaEdit} />}
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit?.(task)
-              }}
-              _hover={{ transform: 'translateY(-1px)' }}
+              leftIcon={<FaPlay />}
+              onClick={() => handleStatusChange('in-progress')}
+              flex="1"
             >
-              Edit
+              Start
             </Button>
+          )}
+          {task.status !== 'completed' && (
             <Button
               size="sm"
-              colorScheme="red"
-              leftIcon={<Icon as={FaTrash} />}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleDelete()
-              }}
-              _hover={{ transform: 'translateY(-1px)' }}
+              colorScheme="green"
+              leftIcon={<FaCheck />}
+              onClick={() => handleStatusChange('completed')}
+              flex="1"
             >
-              Delete
+              Complete
             </Button>
-          </HStack>
-        </VStack>
-      </Box>
+          )}
+          <Button
+            size="sm"
+            colorScheme="red"
+            leftIcon={<FaTrash />}
+            onClick={() => onDelete(task._id)}
+            flex="1"
+          >
+            Delete
+          </Button>
+        </HStack>
+      </VStack>
+    </Box>
+  );
+};
 
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalCloseButton />
-          <TaskDetails
-            task={task}
-            onClose={onClose}
-            onEdit={onEdit}
-          />
-        </ModalContent>
-      </Modal>
-    </>
-  )
-}
-
-export default TaskCard 
+export default TaskCard; 

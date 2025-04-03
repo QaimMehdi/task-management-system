@@ -1,131 +1,132 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-  SimpleGrid,
-  Text,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
   Box,
-  Select,
-  HStack,
+  Container,
+  VStack,
+  Heading,
   Input,
+  Select,
+  SimpleGrid,
+  useToast,
+  Spinner,
+  Text,
 } from '@chakra-ui/react'
 import TaskCard from './TaskCard'
-import TaskForm from './TaskForm'
+import { taskService } from '../services/taskService'
 
 const TaskList = () => {
   const [tasks, setTasks] = useState([])
-  const [editingTask, setEditingTask] = useState(null)
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const { isOpen, onOpen, onClose } = useDisclosure()
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const toast = useToast()
-
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/tasks')
-      if (!response.ok) throw new Error('Failed to fetch tasks')
-      const data = await response.json()
-      setTasks(data)
-    } catch (error) {
-      toast({
-        title: 'Error fetching tasks',
-        description: error.message,
-        status: 'error',
-        duration: 3000,
-      })
-    }
-  }
 
   useEffect(() => {
     fetchTasks()
   }, [])
 
-  const handleTaskCreated = (newTask) => {
-    setTasks(prev => [...prev, newTask])
+  const fetchTasks = async () => {
+    try {
+      const data = await taskService.getAllTasks()
+      setTasks(data)
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch tasks',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleTaskDeleted = (taskId) => {
-    setTasks(prev => prev.filter(task => task._id !== taskId))
-  }
-
-  const handleTaskEdit = (task) => {
-    setEditingTask(task)
-    onOpen()
-  }
-
-  const handleTaskUpdated = (updatedTask) => {
-    setTasks(prev => prev.map(task => 
-      task._id === updatedTask._id ? updatedTask : task
-    ))
-    setEditingTask(null)
-    onClose()
+  const handleDelete = async (id) => {
+    try {
+      await taskService.deleteTask(id)
+      setTasks(tasks.filter(task => task._id !== id))
+      toast({
+        title: 'Success',
+        description: 'Task deleted successfully',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete task',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
   }
 
   const filteredTasks = tasks.filter(task => {
-    const matchesStatus = filterStatus === 'all' || task.status === filterStatus
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesStatus && matchesSearch
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         task.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter
+    return matchesSearch && matchesStatus
   })
 
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minH="200px">
+        <Spinner size="xl" />
+      </Box>
+    )
+  }
+
   return (
-    <Box>
-      <HStack spacing={4} mb={6}>
-        <Input
-          placeholder="Search tasks..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          maxW="300px"
-        />
-        <Select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          maxW="200px"
-        >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="in progress">In Progress</option>
-          <option value="completed">Completed</option>
-        </Select>
-      </HStack>
+    <Container maxW="container.xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        <Box>
+          <Heading size="xl" mb={6}>Tasks</Heading>
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={8}>
+            <Input
+              placeholder="Search tasks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="lg"
+            />
+            <Select 
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value)}
+              size="lg"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in-progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </Select>
+          </SimpleGrid>
+        </Box>
 
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
         {filteredTasks.length === 0 ? (
-          <Text textAlign="center" gridColumn="1 / -1" color="gray.500">
-            No tasks found. Create one to get started!
-          </Text>
+          <Box textAlign="center" py={10}>
+            <Text fontSize="xl" color="gray.500">
+              No tasks found. Create a new task to get started!
+            </Text>
+          </Box>
         ) : (
-          filteredTasks.map(task => (
-            <TaskCard
-              key={task._id}
-              task={task}
-              onDelete={handleTaskDeleted}
-              onEdit={handleTaskEdit}
-            />
-          ))
+          <SimpleGrid 
+            columns={{ base: 1, md: 2, lg: 3 }} 
+            spacing={6}
+            alignItems="stretch"
+          >
+            {filteredTasks.map((task) => (
+              <TaskCard
+                key={task._id}
+                task={task}
+                onDelete={handleDelete}
+              />
+            ))}
+          </SimpleGrid>
         )}
-      </SimpleGrid>
-
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Edit Task</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <TaskForm
-              initialData={editingTask}
-              onTaskCreated={handleTaskUpdated}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </Box>
+      </VStack>
+    </Container>
   )
 }
 

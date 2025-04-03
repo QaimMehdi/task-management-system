@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Button,
@@ -14,6 +14,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import { FaPlus, FaEdit } from 'react-icons/fa'
+import { taskService } from '../services/taskService'
 
 const TaskForm = ({ onTaskCreated, initialData = null }) => {
   const [formData, setFormData] = useState(initialData || {
@@ -22,7 +23,7 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
     status: 'pending',
     dueDate: '',
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
   const toast = useToast()
 
   const bgColor = useColorModeValue('white', 'gray.800')
@@ -30,40 +31,34 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsSubmitting(true)
+    setLoading(true)
+
     try {
-      const response = await fetch('http://localhost:3000/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) throw new Error('Failed to create task')
-
-      const newTask = await response.json()
-      onTaskCreated?.(newTask)
+      const newTask = await taskService.createTask(formData)
       setFormData({
         title: '',
         description: '',
         status: 'pending',
         dueDate: '',
       })
+      onTaskCreated(newTask)
       toast({
-        title: 'Task created successfully',
+        title: 'Success',
+        description: 'Task created successfully',
         status: 'success',
         duration: 3000,
+        isClosable: true,
       })
     } catch (error) {
       toast({
-        title: 'Error creating task',
-        description: error.message,
+        title: 'Error',
+        description: 'Failed to create task',
         status: 'error',
         duration: 3000,
+        isClosable: true,
       })
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
@@ -125,7 +120,7 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
             _focus={{ borderColor: 'blue.500', boxShadow: '0 0 0 1px #3182ce' }}
           >
             <option value="pending">Pending</option>
-            <option value="in progress">In Progress</option>
+            <option value="in-progress">In Progress</option>
             <option value="completed">Completed</option>
           </Select>
         </FormControl>
@@ -134,7 +129,7 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
           <FormLabel fontWeight="medium">Due Date</FormLabel>
           <Input
             name="dueDate"
-            type="datetime-local"
+            type="date"
             value={formData.dueDate}
             onChange={handleChange}
             size="lg"
@@ -146,7 +141,7 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
           type="submit"
           colorScheme="blue"
           size="lg"
-          isLoading={isSubmitting}
+          isLoading={loading}
           loadingText={initialData ? 'Updating...' : 'Creating...'}
           leftIcon={<Icon as={initialData ? FaEdit : FaPlus} />}
           _hover={{ transform: 'translateY(-1px)', boxShadow: 'lg' }}
