@@ -1,48 +1,128 @@
-import { ChakraProvider, Box, Container, Heading, VStack, useToast, Text, Flex } from '@chakra-ui/react'
-import TaskList from './components/TaskList'
-import TaskForm from './components/TaskForm'
+import { ChakraProvider, CSSReset, Box, Spinner, Center } from '@chakra-ui/react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, createContext, useContext } from 'react';
+import Layout from './components/Layout';
+import Header from './components/Header';
+import TaskForm from './components/TaskForm';
+import TaskList from './components/TaskList';
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
 
-function App() {
-  const toast = useToast()
+// Create auth context
+export const AuthContext = createContext(null);
 
-  const handleTaskCreated = (newTask) => {
-    toast({
-      title: 'Task created successfully',
-      status: 'success',
-      duration: 3000,
-    })
+// Auth provider component
+export const AuthProvider = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tasksVersion, setTasksVersion] = useState(0);
+
+  useEffect(() => {
+    const initializeAuth = () => {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
+      if (token && userData) {
+        setIsAuthenticated(true);
+        setUser(JSON.parse(userData));
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, []);
+
+  const login = (token, userData) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setIsAuthenticated(true);
+    setUser(userData);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  const refreshTasks = () => {
+    setTasksVersion(prev => prev + 1);
+  };
+
+  if (loading) {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" />
+      </Center>
+    );
   }
 
   return (
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, refreshTasks, tasksVersion }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Private route component
+const PrivateRoute = ({ children }) => {
+  const { isAuthenticated } = useContext(AuthContext);
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
+
+function App() {
+  return (
     <ChakraProvider>
-      <Box 
-        minH="100vh" 
-        bg="linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)"
-        py={8}
-      >
-        <Container maxW="container.xl">
-          <VStack spacing={8} align="stretch">
-            <Flex direction="column" align="center" mb={4}>
-              <Heading 
-                textAlign="center" 
-                color="blue.600"
-                fontSize={{ base: "2xl", md: "3xl", lg: "4xl" }}
-                mb={2}
-                textShadow="2px 2px 4px rgba(0,0,0,0.1)"
-              >
-                Task Management System
-              </Heading>
-              <Text color="gray.600" fontSize="lg">
-                Organize your tasks efficiently and boost productivity
-              </Text>
-            </Flex>
-            <TaskForm onTaskCreated={handleTaskCreated} />
-            <TaskList />
-          </VStack>
-        </Container>
-      </Box>
+      <CSSReset />
+      <Router>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <Box minH="100vh" bg="gray.50">
+                    <Layout>
+                      <Header />
+                      <TaskForm />
+                      <TaskList />
+                    </Layout>
+                  </Box>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <PrivateRoute>
+                  <Box minH="100vh" bg="gray.50">
+                    <Layout>
+                      <Header />
+                      <TaskForm />
+                      <TaskList />
+                    </Layout>
+                  </Box>
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </Router>
     </ChakraProvider>
-  )
+  );
 }
 
-export default App
+export default App;

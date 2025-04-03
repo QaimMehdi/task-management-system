@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import {
   Box,
   Container,
@@ -10,42 +10,102 @@ import {
   useToast,
   Spinner,
   Text,
+  useColorModeValue,
+  Skeleton,
+  useBreakpointValue,
+  HStack,
+  IconButton,
+  Tooltip,
+  Center,
 } from '@chakra-ui/react'
 import TaskCard from './TaskCard'
-import { taskService } from '../services/taskService'
+import { AuthContext } from '../App'
+import { SearchIcon } from '@chakra-ui/icons'
 
 const TaskList = () => {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const toast = useToast()
+  const { tasksVersion, refreshTasks } = useContext(AuthContext)
+
+  const columns = useBreakpointValue({
+    base: 1,
+    sm: 1,
+    md: 2,
+    lg: 3,
+    xl: 4,
+    '2xl': 5
+  })
+
+  const spacing = useBreakpointValue({
+    base: 4,
+    sm: 5,
+    md: 6,
+    lg: 6,
+    xl: 8
+  })
+
+  const filterBarWidth = useBreakpointValue({
+    base: "full",
+    sm: "full",
+    md: "full",
+    lg: "full",
+    xl: "80%"
+  })
+
+  const bgColor = useColorModeValue('white', 'gray.800')
+  const borderColor = useColorModeValue('gray.200', 'gray.700')
 
   useEffect(() => {
-    fetchTasks()
-  }, [])
+    const fetchTasks = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('http://localhost:3000/api/tasks', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
 
-  const fetchTasks = async () => {
-    try {
-      const data = await taskService.getAllTasks()
-      setTasks(data)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch tasks',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-    } finally {
-      setLoading(false)
+        if (!response.ok) {
+          throw new Error('Failed to fetch tasks')
+        }
+
+        const data = await response.json()
+        setTasks(data)
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: error.message,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    fetchTasks()
+  }, [tasksVersion, toast])
 
   const handleDelete = async (id) => {
     try {
-      await taskService.deleteTask(id)
-      setTasks(tasks.filter(task => task._id !== id))
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:3000/api/tasks/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to delete task')
+      }
+
+      refreshTasks() // Refresh the task list
       toast({
         title: 'Success',
         description: 'Task deleted successfully',
@@ -56,7 +116,46 @@ const TaskList = () => {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete task',
+        description: error.message || 'Failed to delete task',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
+  const handleStatusChange = async (id, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'pending' ? 'in-progress' :
+                       currentStatus === 'in-progress' ? 'completed' : 'pending'
+      
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:3000/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to update task')
+      }
+
+      refreshTasks() // Refresh the task list
+      toast({
+        title: 'Success',
+        description: `Task status updated to ${newStatus}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update task status',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -65,68 +164,119 @@ const TaskList = () => {
   }
 
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         task.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter
     return matchesSearch && matchesStatus
   })
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minH="200px">
+      <Center py={10}>
         <Spinner size="xl" />
-      </Box>
+      </Center>
     )
   }
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <VStack spacing={8} align="stretch">
-        <Box>
-          <Heading size="xl" mb={6}>Tasks</Heading>
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={8}>
-            <Input
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              size="lg"
-            />
-            <Select 
-              value={statusFilter} 
+    <VStack spacing={spacing} align="stretch" w="full">
+      <Box
+        p={{ base: 3, sm: 4, md: 5, lg: 6 }}
+        bg={bgColor}
+        borderRadius="lg"
+        boxShadow="sm"
+        borderWidth="1px"
+        borderColor={borderColor}
+        w={filterBarWidth}
+        mx="auto"
+      >
+        <VStack spacing={4} align="stretch">
+          <HStack 
+            spacing={{ base: 2, sm: 4, md: 6 }} 
+            align="start"
+            flexDir={{ base: 'column', sm: 'row' }}
+            w="full"
+          >
+            <Box flex="1" position="relative" w="full">
+              <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                pl="40px"
+                size={{ base: "sm", md: "md", lg: "lg" }}
+                w="full"
+              />
+              <IconButton
+                icon={<SearchIcon />}
+                aria-label="Search"
+                position="absolute"
+                left="0"
+                top="50%"
+                transform="translateY(-50%)"
+                variant="ghost"
+                size={{ base: "sm", md: "md" }}
+                color="gray.500"
+              />
+            </Box>
+            <Select
+              value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              size="lg"
+              size={{ base: "sm", md: "md", lg: "lg" }}
+              w={{ base: "full", sm: "200px", lg: "250px" }}
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </Select>
-          </SimpleGrid>
-        </Box>
+          </HStack>
+        </VStack>
+      </Box>
 
-        {filteredTasks.length === 0 ? (
-          <Box textAlign="center" py={10}>
-            <Text fontSize="xl" color="gray.500">
-              No tasks found. Create a new task to get started!
-            </Text>
-          </Box>
-        ) : (
-          <SimpleGrid 
-            columns={{ base: 1, md: 2, lg: 3 }} 
-            spacing={6}
-            alignItems="stretch"
-          >
-            {filteredTasks.map((task) => (
-              <TaskCard
-                key={task._id}
-                task={task}
-                onDelete={handleDelete}
-              />
-            ))}
-          </SimpleGrid>
-        )}
-      </VStack>
-    </Container>
+      {loading ? (
+        <SimpleGrid 
+          columns={columns} 
+          spacing={spacing} 
+          w="full"
+          px={{ base: 0, lg: 4, xl: 6 }}
+        >
+          {[1, 2, 3, 4].map((n) => (
+            <Skeleton key={n} height="200px" borderRadius="lg" />
+          ))}
+        </SimpleGrid>
+      ) : filteredTasks.length === 0 ? (
+        <Box
+          p={6}
+          textAlign="center"
+          bg={bgColor}
+          borderRadius="lg"
+          boxShadow="sm"
+          borderWidth="1px"
+          borderColor={borderColor}
+          w={{ base: "full", xl: "80%" }}
+          mx="auto"
+        >
+          <Text color="gray.500">No tasks found</Text>
+        </Box>
+      ) : (
+        <SimpleGrid 
+          columns={columns} 
+          spacing={spacing}
+          w="full"
+          alignItems="stretch"
+          px={{ base: 0, lg: 4, xl: 6 }}
+        >
+          {filteredTasks.map((task) => (
+            <TaskCard
+              key={task._id}
+              task={task}
+              onDelete={handleDelete}
+              onStatusChange={handleStatusChange}
+            />
+          ))}
+        </SimpleGrid>
+      )}
+    </VStack>
   )
 }
 

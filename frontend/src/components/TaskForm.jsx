@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import {
   Box,
   Button,
@@ -10,38 +10,66 @@ import {
   useToast,
   Textarea,
   Heading,
-  Icon,
   useColorModeValue,
 } from '@chakra-ui/react'
-import { FaPlus, FaEdit } from 'react-icons/fa'
-import { taskService } from '../services/taskService'
+import { FaPlus } from 'react-icons/fa'
+import { AuthContext } from '../App'
 
-const TaskForm = ({ onTaskCreated, initialData = null }) => {
-  const [formData, setFormData] = useState(initialData || {
-    title: '',
-    description: '',
-    status: 'pending',
-    dueDate: '',
-  })
-  const [loading, setLoading] = useState(false)
+const TaskForm = () => {
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [status, setStatus] = useState('pending')
+  const [dueDate, setDueDate] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const toast = useToast()
+  const { refreshTasks } = useContext(AuthContext)
 
   const bgColor = useColorModeValue('white', 'gray.800')
-  const borderColor = useColorModeValue('gray.200', 'gray.600')
+  const borderColor = useColorModeValue('gray.200', 'gray.700')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
-
-    try {
-      const newTask = await taskService.createTask(formData)
-      setFormData({
-        title: '',
-        description: '',
-        status: 'pending',
-        dueDate: '',
+    
+    // Validate inputs
+    if (!title.trim() || !description.trim() || !dueDate) {
+      toast({
+        title: 'Error',
+        description: 'Title, description, and due date are required',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
       })
-      onTaskCreated(newTask)
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://localhost:3000/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          status,
+          dueDate: new Date(dueDate).toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to create task')
+      }
+
+      // Reset form
+      setTitle('')
+      setDescription('')
+      setStatus('pending')
+      setDueDate('')
+
       toast({
         title: 'Success',
         description: 'Task created successfully',
@@ -49,75 +77,81 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
         duration: 3000,
         isClosable: true,
       })
+
+      // Trigger task list refresh
+      refreshTasks()
     } catch (error) {
+      console.error('Error creating task:', error)
+      
       toast({
         title: 'Error',
-        description: 'Failed to create task',
+        description: error.message || 'Failed to create task. Please try again.',
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       })
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   return (
     <Box 
       as="form" 
       onSubmit={handleSubmit} 
-      p={6} 
       bg={bgColor}
-      rounded="xl" 
-      shadow="lg"
-      border="1px"
+      p={6} 
+      borderRadius="lg" 
+      boxShadow="sm"
+      borderWidth="1px"
       borderColor={borderColor}
-      _hover={{ shadow: 'xl', transform: 'translateY(-2px)', transition: 'all 0.2s' }}
+      w="full"
+      maxW="600px"
+      mx="auto"
+      mb={8}
     >
-      <VStack spacing={6} align="stretch">
-        <Heading size="md" color="blue.600" display="flex" alignItems="center" gap={2}>
-          <Icon as={initialData ? FaEdit : FaPlus} />
-          {initialData ? 'Edit Task' : 'Create New Task'}
+      <VStack spacing={4} align="stretch">
+        <Heading size="lg" color={useColorModeValue('gray.700', 'white')}>
+          Create New Task
         </Heading>
 
         <FormControl isRequired>
-          <FormLabel fontWeight="medium">Title</FormLabel>
+          <FormLabel>Title</FormLabel>
           <Input
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter task title"
-            size="lg"
-            _focus={{ borderColor: 'blue.500', boxShadow: '0 0 0 1px #3182ce' }}
+            size="md"
           />
         </FormControl>
 
         <FormControl isRequired>
-          <FormLabel fontWeight="medium">Description</FormLabel>
+          <FormLabel>Description</FormLabel>
           <Textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter task description"
-            size="lg"
+            size="md"
             rows={4}
-            _focus={{ borderColor: 'blue.500', boxShadow: '0 0 0 1px #3182ce' }}
+          />
+        </FormControl>
+
+        <FormControl isRequired>
+          <FormLabel>Due Date</FormLabel>
+          <Input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            size="md"
           />
         </FormControl>
 
         <FormControl>
-          <FormLabel fontWeight="medium">Status</FormLabel>
-          <Select 
-            name="status" 
-            value={formData.status} 
-            onChange={handleChange}
-            size="lg"
-            _focus={{ borderColor: 'blue.500', boxShadow: '0 0 0 1px #3182ce' }}
+          <FormLabel>Status</FormLabel>
+          <Select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            size="md"
           >
             <option value="pending">Pending</option>
             <option value="in-progress">In Progress</option>
@@ -125,28 +159,15 @@ const TaskForm = ({ onTaskCreated, initialData = null }) => {
           </Select>
         </FormControl>
 
-        <FormControl isRequired>
-          <FormLabel fontWeight="medium">Due Date</FormLabel>
-          <Input
-            name="dueDate"
-            type="date"
-            value={formData.dueDate}
-            onChange={handleChange}
-            size="lg"
-            _focus={{ borderColor: 'blue.500', boxShadow: '0 0 0 1px #3182ce' }}
-          />
-        </FormControl>
-
         <Button
           type="submit"
           colorScheme="blue"
-          size="lg"
-          isLoading={loading}
-          loadingText={initialData ? 'Updating...' : 'Creating...'}
-          leftIcon={<Icon as={initialData ? FaEdit : FaPlus} />}
-          _hover={{ transform: 'translateY(-1px)', boxShadow: 'lg' }}
+          size="md"
+          isLoading={isLoading}
+          loadingText="Creating..."
+          leftIcon={<FaPlus />}
         >
-          {initialData ? 'Update Task' : 'Create Task'}
+          Create Task
         </Button>
       </VStack>
     </Box>
