@@ -1,30 +1,85 @@
-import { Box, Heading, Text, useColorModeValue } from '@chakra-ui/react';
+import React, { useContext } from 'react';
+import {
+  Box,
+  Flex,
+  HStack,
+  IconButton,
+  useColorModeValue,
+  useColorMode,
+  Image,
+  Button,
+  Text,
+  useToast,
+} from '@chakra-ui/react';
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../App';
+import logo from '../assets/logo.png';
 
 const Header = () => {
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const { colorMode, toggleColorMode } = useColorMode();
+  const { setIsAuthenticated } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const handleLogout = () => {
+    // Clear authentication token
+    localStorage.removeItem('token');
+    // Update authentication state
+    setIsAuthenticated(false);
+    // Show success message
+    toast({
+      title: 'Logged out successfully',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+    // Redirect to login page
+    navigate('/login');
+  };
 
   return (
     <Box
-      bg={bgColor}
-      p={6}
-      borderRadius="lg"
-      boxShadow="sm"
-      borderWidth="1px"
-      borderColor={borderColor}
+      bg={useColorModeValue('white', 'gray.800')}
+      px={4}
+      py={2}
+      borderBottom="1px"
+      borderColor={useColorModeValue('gray.200', 'gray.700')}
+      position="sticky"
+      top={0}
+      zIndex={1000}
     >
-      <Heading
-        as="h1"
-        size="xl"
-        bgGradient="linear(to-r, blue.500, purple.500)"
-        bgClip="text"
-        mb={2}
-      >
-        Task Management System
-      </Heading>
-      <Text color="gray.600" fontSize="lg">
-        Organize your tasks efficiently and boost productivity
-      </Text>
+      <Flex h={16} alignItems="center" justifyContent="space-between">
+        <HStack spacing={8} alignItems="center">
+          <Box>
+            <Image src={logo} alt="Tasky" h="40px" />
+          </Box>
+          <Text
+            fontSize="xl"
+            fontWeight="bold"
+            display={{ base: 'none', md: 'block' }}
+          >
+            Tasky
+          </Text>
+        </HStack>
+
+        <HStack spacing={4}>
+          <IconButton
+            icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+            onClick={toggleColorMode}
+            variant="ghost"
+            aria-label="Toggle color mode"
+          />
+          <Button
+            colorScheme="red"
+            variant="ghost"
+            onClick={handleLogout}
+            size={{ base: 'sm', md: 'md' }}
+          >
+            Logout
+          </Button>
+        </HStack>
+      </Flex>
     </Box>
   );
 };

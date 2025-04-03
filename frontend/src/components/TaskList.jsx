@@ -19,6 +19,7 @@ import {
   Center,
 } from '@chakra-ui/react'
 import TaskCard from './TaskCard'
+import TaskProgress from './TaskProgress'
 import { AuthContext } from '../App'
 import { SearchIcon } from '@chakra-ui/icons'
 
@@ -163,6 +164,29 @@ const TaskList = () => {
     }
   }
 
+  const handleTaskUpdate = async (updatedTask) => {
+    try {
+      setTasks(tasks.map(task => 
+        task._id === updatedTask._id ? updatedTask : task
+      ));
+      toast({
+        title: 'Success',
+        description: 'Task updated successfully',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          task.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -180,6 +204,8 @@ const TaskList = () => {
 
   return (
     <VStack spacing={spacing} align="stretch" w="full">
+      <TaskProgress tasks={tasks} />
+
       <Box
         p={{ base: 3, sm: 4, md: 5, lg: 6 }}
         bg={bgColor}
@@ -272,6 +298,7 @@ const TaskList = () => {
               task={task}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              onUpdate={handleTaskUpdate}
             />
           ))}
         </SimpleGrid>

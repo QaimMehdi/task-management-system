@@ -1,4 +1,6 @@
+import React from 'react';
 import { Box, Container, VStack, useBreakpointValue } from '@chakra-ui/react';
+import Header from './Header';
 
 const Layout = ({ children }) => {
   const containerWidth = useBreakpointValue({
@@ -27,7 +29,8 @@ const Layout = ({ children }) => {
   });
 
   return (
-    <Box minH="100vh" bg="gray.50" px={{ base: 2, lg: 4, xl: 6 }}>
+    <Box minH="100vh" bg="gray.50" _dark={{ bg: 'gray.900' }}>
+      <Header />
       <Container 
         maxW={containerWidth} 
         py={padding}

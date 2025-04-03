@@ -1,56 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Text,
+  Badge,
   IconButton,
   HStack,
   VStack,
   useColorModeValue,
-  Badge,
   Tooltip,
-  useBreakpointValue,
 } from '@chakra-ui/react';
 import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
-import { motion } from 'framer-motion';
+import EditTaskModal from './EditTaskModal';
 import { taskService } from '../services/taskService';
 
-const MotionBox = motion(Box);
-
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'pending':
-      return 'yellow';
-    case 'in-progress':
-      return 'blue';
-    case 'completed':
-      return 'green';
-    default:
-      return 'gray';
-  }
-};
-
-const TaskCard = ({ task, onDelete, onEdit, onStatusChange }) => {
+const TaskCard = ({ task, onDelete, onStatusChange, onUpdate }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
-  const padding = useBreakpointValue({
-    base: 3,
-    sm: 4,
-    md: 5,
-  });
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'green';
+      case 'in-progress':
+        return 'blue';
+      default:
+        return 'orange';
+    }
+  };
 
-  const titleSize = useBreakpointValue({
-    base: 'md',
-    sm: 'lg',
-    md: 'lg',
-  });
-
-  const descriptionSize = useBreakpointValue({
-    base: 'sm',
-    sm: 'md',
-    md: 'md',
-  });
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No due date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   const handleStatusChange = async (newStatus) => {
     try {
@@ -66,101 +54,77 @@ const TaskCard = ({ task, onDelete, onEdit, onStatusChange }) => {
   };
 
   return (
-    <MotionBox
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2 }}
-      w="full"
-    >
+    <>
       <Box
-        bg={bgColor}
-        p={padding}
-        borderRadius="lg"
-        boxShadow="sm"
+        p={5}
+        shadow="md"
         borderWidth="1px"
+        borderRadius="lg"
+        bg={bgColor}
         borderColor={borderColor}
-        _hover={{ bg: hoverBg }}
-        height="100%"
-        w="full"
+        position="relative"
+        transition="all 0.2s"
+        _hover={{ shadow: 'lg' }}
       >
-        <VStack align="stretch" spacing={3} h="100%">
-          <HStack 
-            justify="space-between" 
-            align="start"
-            spacing={{ base: 2, sm: 3 }}
-          >
-            <Text
-              fontSize={titleSize}
-              fontWeight="bold"
-              color={useColorModeValue('gray.800', 'white')}
-              noOfLines={2}
-              flex="1"
-            >
+        <VStack align="stretch" spacing={3}>
+          <HStack justify="space-between" align="start">
+            <Text fontSize="lg" fontWeight="bold" noOfLines={2}>
               {task.title}
             </Text>
-            <HStack spacing={{ base: 1, sm: 2 }}>
-              <Tooltip label="Edit Task" placement="top">
+            <HStack spacing={2}>
+              <Tooltip label="Edit task" placement="top">
                 <IconButton
                   icon={<EditIcon />}
-                  onClick={() => onEdit(task)}
-                  aria-label="Edit task"
+                  size="sm"
                   variant="ghost"
                   colorScheme="blue"
-                  size={{ base: 'sm', md: 'sm' }}
+                  onClick={() => setIsEditModalOpen(true)}
                 />
               </Tooltip>
-              <Tooltip label="Delete Task" placement="top">
+              <Tooltip label="Delete task" placement="top">
                 <IconButton
                   icon={<DeleteIcon />}
-                  onClick={() => onDelete(task._id)}
-                  aria-label="Delete task"
+                  size="sm"
                   variant="ghost"
                   colorScheme="red"
-                  size={{ base: 'sm', md: 'sm' }}
+                  onClick={() => onDelete(task._id)}
                 />
               </Tooltip>
             </HStack>
           </HStack>
 
-          <Text
-            fontSize={descriptionSize}
-            color={useColorModeValue('gray.600', 'gray.300')}
-            noOfLines={3}
-            flex="1"
-          >
+          <Text noOfLines={3} color={useColorModeValue('gray.600', 'gray.300')}>
             {task.description}
           </Text>
 
-          <HStack 
-            justify="space-between" 
-            align="center" 
-            mt="auto"
-            spacing={{ base: 2, sm: 3 }}
-          >
+          <HStack justify="space-between" align="center">
             <Badge
               colorScheme={getStatusColor(task.status)}
+              cursor="pointer"
+              onClick={() => onStatusChange(task._id, task.status)}
               px={2}
               py={1}
               borderRadius="full"
-              cursor="pointer"
-              onClick={() => onStatusChange(task._id, task.status)}
-              fontSize={{ base: 'xs', sm: 'sm' }}
-              textTransform="capitalize"
             >
-              {task.status}
+              {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
             </Badge>
-            <Text
-              fontSize={{ base: 'xs', sm: 'sm' }}
-              color={useColorModeValue('gray.500', 'gray.400')}
-            >
-              {new Date(task.createdAt).toLocaleDateString()}
+            <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>
+              Due: {formatDate(task.dueDate)}
             </Text>
           </HStack>
         </VStack>
       </Box>
-    </MotionBox>
+
+      <EditTaskModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        task={task}
+        onTaskUpdate={(updatedTask) => {
+          onUpdate(updatedTask);
+          setIsEditModalOpen(false);
+        }}
+      />
+    </>
   );
 };
 

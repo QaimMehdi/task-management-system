@@ -2,7 +2,6 @@ import { ChakraProvider, CSSReset, Box, Spinner, Center } from '@chakra-ui/react
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, createContext, useContext } from 'react';
 import Layout from './components/Layout';
-import Header from './components/Header';
 import TaskForm from './components/TaskForm';
 import TaskList from './components/TaskList';
 import Login from './components/auth/Login';
@@ -63,7 +62,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, refreshTasks, tasksVersion }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, refreshTasks, tasksVersion, setIsAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );
@@ -94,13 +93,10 @@ function App() {
               path="/"
               element={
                 <PrivateRoute>
-                  <Box minH="100vh" bg="gray.50">
-                    <Layout>
-                      <Header />
-                      <TaskForm />
-                      <TaskList />
-                    </Layout>
-                  </Box>
+                  <Layout>
+                    <TaskForm />
+                    <TaskList />
+                  </Layout>
                 </PrivateRoute>
               }
             />
@@ -108,13 +104,10 @@ function App() {
               path="/tasks"
               element={
                 <PrivateRoute>
-                  <Box minH="100vh" bg="gray.50">
-                    <Layout>
-                      <Header />
-                      <TaskForm />
-                      <TaskList />
-                    </Layout>
-                  </Box>
+                  <Layout>
+                    <TaskForm />
+                    <TaskList />
+                  </Layout>
                 </PrivateRoute>
               }
             />
